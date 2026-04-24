@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width">
+    <title>Глобус</title>
+    <style>
+        /* Добавим стили для layout */
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            padding: 20px;
+            background: #f4f6f8;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /*Стили контейнеров*/
+        .box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .header {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /*Сетка для интерфейса обычного пользователя*/
+        .grid-container {
+            display: flex;
+            gap: 20px;
+        }
+
+        .column {
+            flex: 1;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            min-height: 400px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        /*Элементы управления*/
+        input,
+        select,
+        button {
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button {
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button.delete-btn {
+            background: #dc3545;
+        }
+
+        /*Чат*/
+        #chat-window {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #fafafa;
+        }
+
+        .my-msg {
+            text-align: right;
+            color: #007bff;
+            margin: 5px;
+        }
+
+        .other-msg {
+            text-align: left;
+            color: #00b724;
+            margin: 5px;
+        }
+
+        .system-msg {
+            text-align: center;
+            color: #000000;
+            font-size: 0.8em;
+        }
+
+        /*Список пользователей*/
+        .user-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="box hidden" id="main-header">
+        <div class="header">
+            <h2 style="margin:0;">Глобус</h2>
+            <div>
+                <span id="user-info"></span>
+                <button onclick="logout()" style="background: #666;">Выйти</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="box" id="login-box" style="max-width: 400px; margin: 100px auto;">
+        <h3>Вход в систему</h3>
+        <input id="login-user" placeholder="Логин" style="width: 90%;"><br>
+        <input id="login-pass" type="password" placeholder="Пароль" style="width: 90%;"><br>
+        <button onclick="login()" style="width: 95%;">Войти</button>
+    </div>
+
+    <div id="admin-view" class="hidden">
+        <div class="box">
+            <h3>Управление пользователями</h3>
+            <div style="background: #e9ecef; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                <b>Создать нового пользователя</b>
+                <input id="new-fullname" placeholder="Полное имя">
+                <input id="new-username" placeholder="Логин">
+                <input id="new-password" type="password" placeholder="Пароль">
+                <select id="new-role">
+                    <option value="student">Ученик</option>
+                    <option value="teacher">Учитель</option>
+                </select>
+                <button onclick="adminCreateUser()">Создать</button>
+            </div>
+
+            <h4>Список пользователей</h4>
+            <div id="admin-user-list"></div>
+        </div>
+    </div>
+
+    <div id="user-view" class="grid-container hidden">
+        <div class="column" style="flex: 0 0 250px;">
+            <h3>Чаты</h3>
+            <button onclick="connectChat('general', 'Общий чат')" style="width: 100%;">Общий чат</button>
+            <hr>
+            <h4>Личные сообщения:</h4>
+            <div id="users-for-chat"></div>
+        </div>
+
+        <div class="column" style="flex: 2;">
+            <h3 id="chat-title">Чат не выбран</h3>
+            <div id="chat-window"></div>
+            <div style="display: flex; gap: 10px;">
+                <input id="msg-input" placeholder="Сообщение..." style="flex: 1;">
+                <button onclick="sendMessage()">Отправить</button>
+            </div>
+        </div>
+
+        <div class="column" style="flex: 1;">
+            <h3>Материалы</h3>
+            <div id="teacher-material-upload" class="hidden"
+                style="background: #e3f2fd; padding: 10px; margin-bottom: 10px;">
+                <input id="mat-title" placeholder="Название материала" style="width: 90%;">
+                <input type="file" id="mat-file">
+                <button onclick="uploadMaterial()">Загрузить файл</button>
+            </div>
+
+            <ul id="materials-list" style="padding-left: 20px;"></ul>
+            <hr>
+            <h3>Задания</h3>
+            <div id="teacher-task-create" class="hidden"
+                style="background: #fff3cd; padding: 10px; margin-bottom: 10px;">
+                <select id="task-student-select" style="width: 100%;"></select>
+                <input id="task-desc" placeholder="Текст задания" style="width: 90%;">
+                <button onclick="assignTask()">Выдать задание</button>
+            </div>
+            <ul id="tasks-list" style="padding-left: 20px;"></ul>
+        </div>
+    </div>
+
+    <script>
+        // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
+        const SERVER_IP = 'localhost';
+        let token = localStorage.getItem('school_token');
+        let currentUser = null; // id, role, name, sub
+        let ws = null;
+        let currentChatId = null;
+
+        // --- ПРОВЕРКА ПРИ ЗАГРУЗКЕ ---
+        if (token) {
+            // Пытаемся восстановить сессию из токена
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                currentUser = payload;
+                initInterface();
+            } catch (e) {
+                logout();
+            }
+        }
+
+        // --- АВТОРИЗАЦИЯ ---
+        async function login() {
+            const user = document.getElementById('login-user').value;
+            const pass = document.getElementById('login-pass').value;
+            const formData = new FormData();
+            formData.append('username', user);
+            formData.append('password', pass);
+
+            try {
+                const res = await fetch(`http://${SERVER_IP}:8082/token`, { method: 'POST', body: formData });
+                if (!res.ok) throw new Error('Ошибка входа');
+
+                const data = await res.json();
+                token = data.access_token;
+                localStorage.setItem('school_token', token);
+
+                // Получаем данные пользователя
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                currentUser = payload;
+
+                initInterface();
+            } catch (e) {
+                alert(e.message);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('school_token');
+            location.reload();
+        }
+
+        // --- ГЛАВНАЯ ФУНКЦИЯ РАСПРЕДЕЛЕНИЯ РОЛЕЙ ---
+        function initInterface() {
+            // Скрываем вход, показываем шапку
+            document.getElementById('login-box').classList.add('hidden');
+            document.getElementById('main-header').classList.remove('hidden');
+            document.getElementById('user-info').innerHTML = `<b>${currentUser.name || currentUser.sub}</b> (${currentUser.role})`;
+
+            // ЛОГИКА ПЕРЕКЛЮЧЕНИЯ
+            if (currentUser.role === 'admin') {
+                // 1. Показываем Админку
+                document.getElementById('admin-view').classList.remove('hidden');
+                // 2. Скрываем всё остальное
+                document.getElementById('user-view').classList.add('hidden');
+                // 3. Грузим данные админа
+                adminLoadUsers();
+            } else {
+                // 1. Показываем Интерфейс пользователя
+                document.getElementById('user-view').classList.remove('hidden');
+                // 2. Скрываем Админку
+                document.getElementById('admin-view').classList.add('hidden');
+
+                // 3. Настройка прав внутри интерфейса
+                if (currentUser.role === 'teacher') {
+                    document.getElementById('teacher-material-upload').classList.remove('hidden');
+                    document.getElementById('teacher-task-create').classList.remove('hidden');
+                }
+
+                // 4. Грузим данные
+                loadCommonUsers(); // Для чатов
+                loadMaterials();
+                loadTasks();
+                connectChat('general', 'Общий чат');
+            }
+        }
+
+        // ==========================================
+        // ФУНКЦИОНАЛ АДМИНИСТРАТОРА
+        // ==========================================
+        async function adminLoadUsers() {
+            const res = await fetch(`http://${SERVER_IP}:8082/admin/users`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const users = await res.json();
+            const list = document.getElementById('admin-user-list');
+            list.innerHTML = '';
+
+            users.forEach(u => {
+                if (u.username === 'admin') return; // Не удаляем главного админа
+                const div = document.createElement('div');
+                div.className = 'user-row';
+                div.innerHTML = `
+                <span><b>${u.full_name}</b> (${u.role}) - @${u.username}</span>
+                <button class="delete-btn" onclick="adminDeleteUser(${u.id})">Удалить</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        async function adminCreateUser() {
+            const payload = {
+                username: document.getElementById('new-username').value,
+                password: document.getElementById('new-password').value,
+                role: document.getElementById('new-role').value,
+                full_name: document.getElementById('new-fullname').value
+            };
+            const res = await fetch(`http://${SERVER_IP}:8082/admin/create_user`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                alert('Пользователь создан');
+                adminLoadUsers();
+                // Очистка полей
+                document.getElementById('new-username').value = '';
+                document.getElementById('new-password').value = '';
+                document.getElementById('new-fullname').value = '';
+            } else {
+                alert('Ошибка создания (возможно, логин занят)');
+            }
+        }
+
+        async function adminDeleteUser(id) {
+            if (!confirm('Точно удалить?')) return;
+            await fetch(`http://${SERVER_IP}:8082/admin/users/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token} ` }
+            });
+            adminLoadUsers();
+        }
+
+        // ==========================================
+        // ФУНКЦИОНАЛ ПОЛЬЗОВАТЕЛЕЙ (Чат, Файлы)
+        // ==========================================
+
+        // --- 1. Список людей для ЛС и Заданий ---
+        async function loadCommonUsers() {
+            // Используем эндпоинт, который мы договорились создать в Python (/common/users)
+            // Если его нет, создайте или используйте /teacher/students как заглушку
+            const res = await fetch(`http://${SERVER_IP}:8082/common/users`, {
+                headers: { 'Authorization': `Bearer ${token} ` }
+            });
+            if (!res.ok) return;
+
+            const users = await res.json();
+
+            // Заполняем список для ЛС
+            const chatList = document.getElementById('users-for-chat');
+            chatList.innerHTML = '';
+
+            // Заполняем select для выдачи заданий (если учитель)
+            const taskSelect = document.getElementById('task-student-select');
+            taskSelect.innerHTML = '<option value="">Выберите ученика</option>';
+
+            users.forEach(u => {
+                if (u.id === currentUser.id) return; // Пропускаем себя
+
+                // Добавляем в список чатов
+                const btn = document.createElement('div');
+                btn.className = 'user-row';
+                btn.innerHTML = `
+                    <span>${u.full_name}</span>
+                    <button onclick="startPrivateChat(${u.id}, '${u.full_name}')" style="font-size:0.8em">Написать</button>
+                `;
+                chatList.appendChild(btn);
+
+                // Добавляем в селект (только учеников)
+                if (u.role === 'student') {
+                    const opt = document.createElement('option');
+                    opt.value = u.id;
+                    opt.innerText = u.full_name;
+                    taskSelect.appendChild(opt);
+                }
+            });
+        }
+
+        // --- 2. ЧАТ ---
+        function connectChat(chatId, chatTitle) {
+            if (ws) ws.close();
+            currentChatId = chatId;
+            document.getElementById('chat-title').innerText = chatTitle;
+            document.getElementById('chat-window').innerHTML = '';
+
+            ws = new WebSocket(`ws://${SERVER_IP}:8083/ws?token=${token}`);
+
+            ws.onopen = () => {
+                ws.send(JSON.stringify({ type: 'join', chat_id: chatId }));
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log("Получено сообщение: ", data)
+                console.log("Текущий пользователь: ", currentUser)
+                const div = document.createElement('div');
+                if (data.sender_name === currentUser.name) {
+                    div.className = 'my-msg';
+                    div.innerHTML = `<b>Вы:</b> ${data.text}`;
+                } else {
+                    div.className = 'other-msg';
+                    div.innerHTML = `<b>${(data.sender_name ? data.sender_name : 'Кто-то')}:</b> ${data.text}`;
+                }
+                const win = document.getElementById('chat-window');
+                win.appendChild(div);
+                win.scrollTop = win.scrollHeight;
+            };
+        }
+
+        function startPrivateChat(otherId, otherName) {
+            // Формула ID: private_min_max
+            const min = Math.min(currentUser.id, otherId);
+            const max = Math.max(currentUser.id, otherId);
+            connectChat(`private_${min}_${max}`, `ЛС с ${otherName}`);
+        }
+
+        function sendMessage() {
+            const txt = document.getElementById('msg-input').value;
+            if (!txt || !ws) return;
+            ws.send(JSON.stringify({ type: 'msg', chat_id: currentChatId, text: txt }));
+            document.getElementById('msg-input').value = '';
+        }
+
+        // --- 3. МАТЕРИАЛЫ ---
+        async function uploadMaterial() {
+            const fd = new FormData();
+            fd.append('title', document.getElementById('mat-title').value);
+            fd.append('file', document.getElementById('mat-file').files[0]);
+
+            await fetch(`http://${SERVER_IP}:8082/teacher/materials`, {
+                method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd
+            });
+            loadMaterials();
+            document.getElementById('mat-title').value = '';
+        }
+
+        async function loadMaterials() {
+            const res = await fetch(`http://${SERVER_IP}:8082/common/materials`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            document.getElementById('materials-list').innerHTML = data.map(m =>
+                `<li><a href="${m.file_url}" target="_blank">${m.title}</a></li>`
+            ).join('');
+        }
+
+        // --- 4. ЗАДАНИЯ ---
+        async function assignTask() {
+            const studentId = document.getElementById('task-student-select').value;
+            const desc = document.getElementById('task-desc').value;
+            if (!studentId) return alert('Выберите ученика');
+
+            const fd = new FormData();
+            fd.append('student_id', studentId);
+            fd.append('description', desc);
+
+            await fetch(`http://${SERVER_IP}:8082/teacher/task`, {
+                method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: fd
+            });
+            alert('Задание отправлено');
+            document.getElementById('task-desc').value = '';
+        }
+
+        async function loadTasks() {
+            const res = await fetch(`http://${SERVER_IP}:8082/student/tasks`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            document.getElementById('tasks-list').innerHTML = data.map(t =>
+                `<li>${t.description} (от ${t.created_at})</li>`
+            ).join('');
+        }
+    </script>
+</body>
+
+</html>
